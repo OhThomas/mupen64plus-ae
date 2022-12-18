@@ -106,6 +106,7 @@ public class GalleryActivity extends AppCompatActivity implements GameSidebarAct
     private static final String STATE_GALLERY_REFRESH_NEEDED = "STATE_GALLERY_REFRESH_NEEDED";
     private static final String STATE_SCROLL_TO_POSITION = "STATE_SCROLL_TO_POSITION";
     private static final String STATE_LAUNCH_GAME_AFTER_SCAN = "STATE_LAUNCH_GAME_AFTER_SCAN";
+    private static final String STATE_RESTART_AFTER_SCAN = "STATE_RESTART_AFTER_SCAN";
     private static final String STATE_GAME_STARTED_EXTERNALLY = "STATE_GAME_STARTED_EXTERNALLY";
     private static final String STATE_REMOVE_FROM_LIBRARY_DIALOG = "STATE_REMOVE_FROM_LIBRARY_DIALOG";
     private static final String STATE_CLEAR_SHADERCACHE_DIALOG = "STATE_CLEAR_SHADERCACHE_DIALOG";
@@ -159,6 +160,7 @@ public class GalleryActivity extends AppCompatActivity implements GameSidebarAct
     // Launch a game after searching is complete
     private String mLaunchGameAfterScan = "";
     private String mScanForGameOnResume = "";
+    private boolean mRestartAfterScan = true;
 
     private ConfigFile mConfig;
 
@@ -244,11 +246,12 @@ public class GalleryActivity extends AppCompatActivity implements GameSidebarAct
             if (!extras.getBoolean(KEY_IS_LEANBACK)) {
                 Log.i("GalleryActivity", "Loading ROM from other app");
                 final String givenRomPath = extras.getString( ActivityHelper.Keys.ROM_PATH );
+                boolean givenRestart = extras.getBoolean( ActivityHelper.Keys.DO_RESTART, true );
 
                 if( !TextUtils.isEmpty( givenRomPath ) ) {
                     getIntent().replaceExtras((Bundle)null);
 
-                    launchGameOnCreation(givenRomPath, true);
+                    launchGameOnCreation(givenRomPath, true, givenRestart);
                 }
             } else {
 
@@ -271,12 +274,13 @@ public class GalleryActivity extends AppCompatActivity implements GameSidebarAct
                 String artPath = extras.getString(ActivityHelper.Keys.ROM_ART_PATH);
                 String goodName = extras.getString(ActivityHelper.Keys.ROM_GOOD_NAME);
                 String displayName = extras.getString(ActivityHelper.Keys.ROM_DISPLAY_NAME);
+                boolean doRestart = extras.getBoolean(ActivityHelper.Keys.DO_RESTART, true);
 
                 if (displayName == null) {
                     displayName = goodName;
                 }
 
-                launchGameActivity( romPath, zipPath,  md5, crc, headerName, countryCode, artPath, goodName, displayName, true,
+                launchGameActivity( romPath, zipPath,  md5, crc, headerName, countryCode, artPath, goodName, displayName, doRestart,
                         false, false);
                 getIntent().replaceExtras((Bundle)null);
             }
@@ -352,6 +356,7 @@ public class GalleryActivity extends AppCompatActivity implements GameSidebarAct
             mGameStartedExternally = savedInstanceState.getBoolean(STATE_GAME_STARTED_EXTERNALLY);
             mCurrentVisiblePosition = savedInstanceState.getInt(STATE_SCROLL_TO_POSITION);
             mLaunchGameAfterScan = savedInstanceState.getString(STATE_LAUNCH_GAME_AFTER_SCAN);
+            mRestartAfterScan = savedInstanceState.getBoolean(STATE_RESTART_AFTER_SCAN, true);
         }
 
         // Get app data and user preferences
@@ -627,6 +632,7 @@ public class GalleryActivity extends AppCompatActivity implements GameSidebarAct
         savedInstanceState.putString(STATE_FILE_TO_DELETE, mPathToDelete);
         savedInstanceState.putInt(STATE_SCROLL_TO_POSITION, mCurrentVisiblePosition);
         savedInstanceState.putString(STATE_LAUNCH_GAME_AFTER_SCAN, mLaunchGameAfterScan);
+        savedInstanceState.putBoolean(STATE_RESTART_AFTER_SCAN, mRestartAfterScan);
 
         super.onSaveInstanceState( savedInstanceState );
     }
@@ -709,7 +715,7 @@ public class GalleryActivity extends AppCompatActivity implements GameSidebarAct
         }
     }
 
-    private void launchGameOnCreation(String givenRomPath, boolean scanOnFailure)
+    private void launchGameOnCreation(String givenRomPath, boolean scanOnFailure, boolean givenRestart)
     {
         if (givenRomPath == null) {
             return;
@@ -757,13 +763,14 @@ public class GalleryActivity extends AppCompatActivity implements GameSidebarAct
                     foundItem.zipUri,
                     foundItem.md5, foundItem.crc,
                     foundItem.headerName, foundItem.countryCode.getValue(), foundItem.artPath,
-                    foundItem.goodName, foundItem.displayName, true,
+                    foundItem.goodName, foundItem.displayName, givenRestart,
                     false, false);
             finishAffinity();
         } else if (scanOnFailure){
             // We want to launch the game after scan completes
             mLaunchGameAfterScan = givenRomPath;
             mScanForGameOnResume = romPathUri.toString();
+            mRestartAfterScan = givenRestart;
         }
     }
 
@@ -1203,7 +1210,7 @@ public class GalleryActivity extends AppCompatActivity implements GameSidebarAct
 
         // We were asked to launch a game after a scan completes, so do it here
         if (!TextUtils.isEmpty(mLaunchGameAfterScan)) {
-            launchGameOnCreation(mLaunchGameAfterScan, false);
+            launchGameOnCreation(mLaunchGameAfterScan, false, mRestartAfterScan);
         }
     }
 
